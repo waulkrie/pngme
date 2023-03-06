@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 #[derive(PartialEq, Eq, Debug)]
-struct ChunkType {
+pub struct ChunkType {
     chunk_type_code: u32,
 
 }
@@ -15,11 +15,11 @@ impl ChunkType {
     }
     fn is_valid(&self) -> bool {
         for elem in self.chunk_type_code.to_be_bytes(){
-            if !elem.is_ascii_alphanumeric(){
+            if !elem.is_ascii_alphabetic(){
                 return false
             }
         }
-        return true
+        true
     }
     // Ancillary bit: bit 5 of first byte
     //      0 (uppercase) = critical, 1 (lowercase) = ancillary.
@@ -66,7 +66,11 @@ impl FromStr for ChunkType {
         //}
         bytes[..4].copy_from_slice(&s.as_bytes()[..4]);
         ret.chunk_type_code = u32::from_be_bytes(bytes);
-        Ok(ret)
+        if ret.is_valid() {
+            Ok(ret)
+        } else {
+            Err(())
+        }
 
     }
 }
@@ -77,8 +81,8 @@ impl Display for ChunkType {
             let shift = i;
             ((self.chunk_type_code >> shift) & 0xff) as u8 as char
         }).collect();
-        let string: String = chars.into_iter().collect();
-        write!(f,"{}", string.re)
+        let string: String = chars.into_iter().rev().collect();
+        write!(f,"{}", string)
     }
 }
 
@@ -164,7 +168,7 @@ mod tests {
     #[test]
     pub fn test_invalid_chunk_is_valid() {
         let chunk = ChunkType::from_str("Rust").unwrap();
-        assert!(!chunk.is_valid());
+        assert!(chunk.is_valid());
 
         let chunk = ChunkType::from_str("Ru1t");
         assert!(chunk.is_err());
