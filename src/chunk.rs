@@ -1,7 +1,10 @@
+use crate::chunk_type::ChunkType;
+use crc::Crc;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use crate::chunk_type::ChunkType;
 
+// The first eight bytes of a PNG file always contain the following (decimal) values:
+// 137 80 78 71 13 10 26 10
 struct Chunk {
     len: u32,
     chuck_type: ChunkType,
@@ -9,9 +12,8 @@ struct Chunk {
     crc: u32,
 }
 impl Chunk {
-
     fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
-        Chunk{
+        Chunk {
             len: 0,
             chuck_type: ChunkType::from_str("RuSt").unwrap(),
             chunk_data: vec![],
@@ -32,19 +34,27 @@ impl Chunk {
     }
 
     fn data_as_string(&self) -> Result<String, String> {
-        Ok("ok".parse().unwrap())
+        let ret: String = self.chunk_data.iter().map(|x| *x as char).collect();
+        return Ok(ret);
     }
+
     fn as_bytes(&self) -> Vec<u8> {
         self.chunk_data.to_vec()
     }
-
 }
 
-impl TryFrom<&[u8]> for ChunkType {
+impl TryFrom<&[u8]> for Chunk {
     type Error = ();
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let ret = "hello".to_string();
+        let val_str: String = value.iter().map(|x| *x as char).collect();
+        let ret: Chunk = Chunk {
+            len: value.len() as u32,
+            chuck_type: ChunkType::from_str(&val_str[0..4]).unwrap(),
+            chunk_data: value.to_vec(),
+            crc: Crc::checksum(),
+        };
+
         Ok(ret)
     }
 }
@@ -54,7 +64,6 @@ impl Display for Chunk {
         todo!()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -83,7 +92,9 @@ mod tests {
     #[test]
     fn test_new_chunk() {
         let chunk_type = ChunkType::from_str("RuSt").unwrap();
-        let data = "This is where your secret message will be!".as_bytes().to_vec();
+        let data = "This is where your secret message will be!"
+            .as_bytes()
+            .to_vec();
         let chunk = Chunk::new(chunk_type, data);
         assert_eq!(chunk.length(), 42);
         assert_eq!(chunk.crc(), 2882656334);

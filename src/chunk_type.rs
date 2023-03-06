@@ -1,4 +1,3 @@
-
 // https://picklenerd.github.io/pngme_book/chapter_1.html
 
 use std::fmt::{Display, Formatter};
@@ -7,20 +6,20 @@ use std::str::FromStr;
 #[derive(PartialEq, Eq, Debug)]
 pub struct ChunkType {
     chunk_type_code: u32,
-
 }
 impl ChunkType {
-    fn bytes(&self) -> [u8;4] {
+    fn bytes(&self) -> [u8; 4] {
         self.chunk_type_code.to_be_bytes()
     }
     fn is_valid(&self) -> bool {
-        for elem in self.chunk_type_code.to_be_bytes(){
-            if !elem.is_ascii_alphabetic(){
-                return false
+        for elem in self.chunk_type_code.to_be_bytes() {
+            if !elem.is_ascii_alphabetic() {
+                return false;
             }
         }
         true
     }
+
     // Ancillary bit: bit 5 of first byte
     //      0 (uppercase) = critical, 1 (lowercase) = ancillary.
     fn is_critical(&self) -> bool {
@@ -34,18 +33,17 @@ impl ChunkType {
     }
     //Reserved bit: bit 5 of third byte
     //     Must be 0 (uppercase) in files conforming to this version of PNG.
-    fn is_reserved_bit_valid(&self) -> bool{
+    fn is_reserved_bit_valid(&self) -> bool {
         self.bytes()[2] & 0b0001_0000 == 0
     }
     //Safe-to-copy bit: bit 5 of fourth byte
     //     0 (uppercase) = unsafe to copy, 1 (lowercase) = safe to copy.
-    fn is_safe_to_copy(&self) -> bool{
+    fn is_safe_to_copy(&self) -> bool {
         self.bytes()[3] & 0b0001_0000 == 0
     }
 }
 
-
-impl TryFrom<[u8;4]> for ChunkType {
+impl TryFrom<[u8; 4]> for ChunkType {
     type Error = ();
 
     fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
@@ -59,7 +57,7 @@ impl FromStr for ChunkType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ret: ChunkType = ChunkType { chunk_type_code: 0 };
-        let mut bytes: [u8; 4] = [0,0,0,0];
+        let mut bytes: [u8; 4] = [0, 0, 0, 0];
         //
         //for i in 0..4{
         //    bytes[i] = s.as_bytes()[i];
@@ -71,28 +69,30 @@ impl FromStr for ChunkType {
         } else {
             Err(())
         }
-
     }
 }
 
 impl Display for ChunkType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let chars: Vec<char> = (0..32).step_by(8).map(|i| {
-            let shift = i;
-            ((self.chunk_type_code >> shift) & 0xff) as u8 as char
-        }).collect();
+        let chars: Vec<char> = (0..32)
+            .step_by(8)
+            .map(|i| {
+                let shift = i;
+                ((self.chunk_type_code >> shift) & 0xff) as u8 as char
+            })
+            .collect();
         let string: String = chars.into_iter().rev().collect();
-        write!(f,"{}", string)
+        write!(f, "{}", string)
     }
 }
 
 // Unit Tests
 
-    #[allow(unused_variables)]
-    #[cfg(test)]
+#[allow(unused_variables)]
+#[cfg(test)]
 mod tests {
-    use std::assert_eq;
     use super::*;
+    use std::assert_eq;
     use std::convert::TryFrom;
     use std::str::FromStr;
 
@@ -188,4 +188,3 @@ mod tests {
         let _are_chunks_equal = chunk_type_1 == chunk_type_2;
     }
 }
-
