@@ -1,5 +1,5 @@
 use crate::chunk_type::ChunkType;
-use crc::Crc;
+use crc::{Crc, CRC_32_CKSUM};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -47,12 +47,22 @@ impl TryFrom<&[u8]> for Chunk {
     type Error = ();
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let val_str: String = value.iter().map(|x| *x as char).collect();
+        // println!("value {:?}", String::from_utf8(value.to_vec()));
+        const CHECK_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
+        let slice_end = value.len() - 4;
+        let val_str: String = value[0..slice_end].iter().map(|x| *x as char).collect();
+        println!("val_str {}", val_str);
+        let mut bytes: [u8; 4] = [0, 0, 0, 0];
+        //
+        //for i in 0..4{
+        //    bytes[i] = s.as_bytes()[i];
+        //}
+        bytes[..4].copy_from_slice(&value[..4]);
         let ret: Chunk = Chunk {
-            len: value.len() as u32,
-            chuck_type: ChunkType::from_str(&val_str[0..4]).unwrap(),
-            chunk_data: value.to_vec(),
-            crc: Crc::checksum(),
+            len: u32::from_be_bytes(bytes),
+            chuck_type: ChunkType::from_str(&val_str[4..8]).unwrap(),
+            chunk_data: value[8..].to_vec(),
+            crc: CHECK_U32.checksum(value),
         };
 
         Ok(ret)
