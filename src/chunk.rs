@@ -5,19 +5,24 @@ use std::str::FromStr;
 
 // The first eight bytes of a PNG file always contain the following (decimal) values:
 // 137 80 78 71 13 10 26 10
+
+#[allow(unused_variables)]
 struct Chunk {
     len: u32,
     chuck_type: ChunkType,
     chunk_data: Vec<u8>,
     crc: u32,
 }
+#[allow(unused_variables)]
 impl Chunk {
     fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
+        const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
+        let temp = CHECKSUM_U32.checksum(data.as_slice());
         Chunk {
-            len: 0,
-            chuck_type: ChunkType::from_str("RuSt").unwrap(),
-            chunk_data: vec![],
-            crc: 0,
+            len: data.len() as u32,
+            chuck_type: chunk_type,
+            chunk_data: data,
+            crc: temp,
         }
     }
     fn length(&self) -> u32 {
@@ -29,7 +34,16 @@ impl Chunk {
     fn data(&self) -> &[u8] {
         self.chunk_data.as_slice()
     }
+    // Don't forget to include the chunk type in your CRC calculation.
     fn crc(&self) -> u32 {
+        const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
+        let chunk_type = self.chuck_type.to_string();
+        let mut chunk_type_bytes = Vec::from(chunk_type.as_bytes());
+        let data = self.chunk_data.as_slice();
+        let mut combined: Vec<u8> = chunk_type_bytes;
+        combined.extend_from_slice(data);
+        let combined_slice = combined.as_slice();
+        let crc = CHECKSUM_U32.checksum(combined_slice);
         self.crc
     }
 
@@ -48,21 +62,20 @@ impl TryFrom<&[u8]> for Chunk {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         // println!("value {:?}", String::from_utf8(value.to_vec()));
-        const CHECK_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
-        let slice_end = value.len() - 4;
-        let val_str: String = value[0..slice_end].iter().map(|x| *x as char).collect();
-        println!("val_str {}", val_str);
+        const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
         let mut bytes: [u8; 4] = [0, 0, 0, 0];
-        //
         //for i in 0..4{
         //    bytes[i] = s.as_bytes()[i];
         //}
         bytes[..4].copy_from_slice(&value[..4]);
+        let slice_end = value.len() - 4;
+        let val_str: String = value[0..slice_end].iter().map(|x| *x as char).collect();
+        println!("val_str {}", val_str);
         let ret: Chunk = Chunk {
             len: u32::from_be_bytes(bytes),
             chuck_type: ChunkType::from_str(&val_str[4..8]).unwrap(),
             chunk_data: value[8..].to_vec(),
-            crc: CHECK_U32.checksum(value),
+            crc: CHECKSUM_U32.checksum(value),
         };
 
         Ok(ret)
@@ -75,6 +88,7 @@ impl Display for Chunk {
     }
 }
 
+#[allow(unused_variables)]
 #[cfg(test)]
 mod tests {
     use super::*;
