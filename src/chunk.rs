@@ -51,6 +51,7 @@ impl Chunk {
     }
 
     fn data_as_string(&self) -> Result<String, String> {
+        println!("{:?}", self.chunk_data.as_slice());
         let ret: String = self.chunk_data.iter().map(|x| *x as char).collect();
         return Ok(ret);
     }
