@@ -1,5 +1,5 @@
 use crate::chunk_type::ChunkType;
-use crc::{Crc, CRC_32_CKSUM};
+use crc::{Crc, CRC_32_CKSUM, CRC_32_ISCSI, CRC_32_MPEG_2};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -18,12 +18,14 @@ impl Chunk {
     fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
         const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
         let temp = CHECKSUM_U32.checksum(data.as_slice());
-        Chunk {
+        let mut ret = Chunk {
             len: data.len() as u32,
             chuck_type: chunk_type,
             chunk_data: data,
-            crc: temp,
-        }
+            crc: 0,
+        };
+        ret.crc = ret.crc();
+        ret
     }
     fn length(&self) -> u32 {
         self.len
@@ -36,15 +38,16 @@ impl Chunk {
     }
     // Don't forget to include the chunk type in your CRC calculation.
     fn crc(&self) -> u32 {
-        const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
+        const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
         let chunk_type = self.chuck_type.to_string();
-        let mut chunk_type_bytes = Vec::from(chunk_type.as_bytes());
+        let chunk_type_bytes = Vec::from(chunk_type.as_bytes());
         let data = self.chunk_data.as_slice();
         let mut combined: Vec<u8> = chunk_type_bytes;
         combined.extend_from_slice(data);
         let combined_slice = combined.as_slice();
+        // println!("{}", combined_slice);
         let crc = CHECKSUM_U32.checksum(combined_slice);
-        self.crc
+        crc
     }
 
     fn data_as_string(&self) -> Result<String, String> {
@@ -64,10 +67,10 @@ impl TryFrom<&[u8]> for Chunk {
         // println!("value {:?}", String::from_utf8(value.to_vec()));
         const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
         let mut bytes: [u8; 4] = [0, 0, 0, 0];
+        bytes[..4].copy_from_slice(&value[..4]);
         //for i in 0..4{
         //    bytes[i] = s.as_bytes()[i];
         //}
-        bytes[..4].copy_from_slice(&value[..4]);
         let slice_end = value.len() - 4;
         let val_str: String = value[0..slice_end].iter().map(|x| *x as char).collect();
         println!("val_str {}", val_str);
