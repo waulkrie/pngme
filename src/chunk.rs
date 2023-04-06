@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use crate::chunk_type::ChunkType;
 use crc::{Crc, CRC_32_CKSUM, CRC_32_ISCSI, CRC_32_MPEG_2};
 use std::fmt::{Display, Formatter};
@@ -14,14 +15,20 @@ struct Chunk {
     crc: u32,
 }
 #[allow(unused_variables)]
+#[allow(dead_code)]
 impl Chunk {
     fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
-        const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
-        let temp = CHECKSUM_U32.checksum(data.as_slice());
+        let mut trimmed_data = data;
+        while let Some(b) = trimmed_data.last() {
+            if b.is_ascii_graphic() {
+                break;
+            }
+            trimmed_data.pop();
+        }
         let mut ret = Chunk {
-            len: data.len() as u32,
+            len: trimmed_data.len() as u32,
             chuck_type: chunk_type,
-            chunk_data: data,
+            chunk_data: trimmed_data,
             crc: 0,
         };
         ret.crc = ret.crc();
@@ -38,22 +45,28 @@ impl Chunk {
     }
     // Don't forget to include the chunk type in your CRC calculation.
     fn crc(&self) -> u32 {
-        const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
+        const CHECKSUM_U32: Crc<u32> = Crc::<u32>::new(&CRC_32_CKSUM);
         let chunk_type = self.chuck_type.to_string();
         let chunk_type_bytes = Vec::from(chunk_type.as_bytes());
         let data = self.chunk_data.as_slice();
         let mut combined: Vec<u8> = chunk_type_bytes;
         combined.extend_from_slice(data);
         let combined_slice = combined.as_slice();
-        // println!("{}", combined_slice);
-        let crc = CHECKSUM_U32.checksum(combined_slice);
-        crc
+        println!("WAT{:?}", combined_slice);
+        CHECKSUM_U32.checksum(combined_slice)
     }
 
     fn data_as_string(&self) -> Result<String, String> {
-        println!("{:?}", self.chunk_data.as_slice());
-        let ret: String = self.chunk_data.iter().map(|x| *x as char).collect();
-        return Ok(ret);
+        println!("data_as_string{:?}", self.chunk_data.as_slice());
+        let ret: String = self
+            .chunk_data
+            .iter()
+            .filter(|&x| x.is_ascii_alphanumeric() || *x == b' ')
+            .map(|&x| x as char)
+            .collect();
+        // let temp = self.chunk_data.clone();
+        // let hear = String::from_utf8(temp).unwrap();
+        Ok(ret)
     }
 
     fn as_bytes(&self) -> Vec<u8> {
@@ -87,7 +100,7 @@ impl TryFrom<&[u8]> for Chunk {
 }
 
 impl Display for Chunk {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
@@ -143,7 +156,7 @@ mod tests {
     #[test]
     fn test_chunk_string() {
         let chunk = testing_chunk();
-        let chunk_string = chunk.data_as_string().unwrap();
+        let chunk_string = chunk.data_as_string().unwrap(); // CRC AT THE END OF STRING!!!
         let expected_chunk_string = String::from("This is where your secret message will be!");
         assert_eq!(chunk_string, expected_chunk_string);
     }
